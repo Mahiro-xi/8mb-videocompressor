@@ -1,29 +1,68 @@
-# モジュールのインポート
+# import modules
 import os
 import tkinter.filedialog
 import tkinter.messagebox
 import math
+import subprocess
 
-# ファイル選択ダイアログの表示
+# reset
+if os.path.exists('output.mp4'):
+    os.remove('output.mp4')
+path = os.getcwd()
+ffpath = path + r'\ffmpeg.exe'
+filesize = 0
+
+# tkinter
 name = 'U8MB'
 root = tkinter.Tk()
 root.withdraw()
 fTyp = [("", "*")]
 iDir = os.path.abspath(os.path.dirname(__file__))
+sel = tkinter.messagebox.askyesno(name, 'NVENCコーデックを使用しますか？\nNVIDIA製グラフィックボードがある場合は高速化が期待できます。')
+if sel:
+    codec = 'h264_nvenc'
+    prefix = 'cq'
+    quality = 20
+    nvenc = "-b:v 0"
+else:
+    codec = 'h264'
+    prefix = 'crf'
+    quality = 18
+    nvenc = ""
 tkinter.messagebox.showinfo(name, '処理ファイルを選択してください！')
 file = tkinter.filedialog.askopenfilename(filetypes=fTyp, initialdir=iDir)
+root, ext = os.path.splitext(file)
+print(ext)
 
-filesize = math.ceil(os.path.getsize(file) / 1000000)
-print(filesize, "MB")
+# extension
+if ext == ".mp4":
+    # filesize calculation
+    filesize = math.ceil(os.path.getsize(file) / 1000000)
+    print(filesize, "MB")
 
-if filesize <= 8:
-    switch = 1
+    # ffmpeg
+    while filesize > 8:
+        command = f'"{ffpath}" -i "{file}" -vcodec {codec} {nvenc} -{prefix} "{quality}" "output.mp4"'
+        print(command)
+        subprocess.run(command, capture_output=True, text=True, input="y")
+        if os.path.exists('output.mp4'):
+            filesize = math.ceil(os.path.getsize('output.mp4') / 1000000)
+            raw = os.path.getsize('output.mp4')
+            print(filesize, "MB", raw)
+            if codec == "h264_nvenc":
+                if raw <= 9000000:
+                    quality = quality + 1
+                else:
+                    quality = quality + 10
+            else:
+                quality = quality + 1
+
+        else:
+            print("FFMPEG ERROR")
+            break
+
+    else:
+        print("COMPRESSED")
 else:
-    switch = 2
-
-# 処理ファイル名の出力
-tkinter.messagebox.showinfo(name, file)
-if switch == 2:
-    tkinter.messagebox.showinfo('Judge', 'OVER 8MB')
-else:
-    tkinter.messagebox.showinfo('Judge', 'UNDER 8MB')
+    print("not mp4")
+    tkinter.messagebox.showinfo('name', 'Only vid file')
