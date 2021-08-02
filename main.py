@@ -18,7 +18,8 @@ root = tkinter.Tk()
 root.withdraw()
 fTyp = [("", "*")]
 iDir = os.path.abspath(os.path.dirname(__file__))
-sel = tkinter.messagebox.askyesno(name, 'NVENCコーデックを使用しますか？\nNVIDIA製グラフィックボードがある場合は高速化が期待できます。')
+sel = tkinter.messagebox.askyesno(name, 'Use NVENC codec?\nIf you have an NVIDIA graphics board, you can expect '
+                                        'higher speed.')
 if sel:
     codec = 'h264_nvenc'
     prefix = 'cq'
@@ -29,7 +30,7 @@ else:
     prefix = 'crf'
     quality = 18
     nvenc = ""
-tkinter.messagebox.showinfo(name, '処理ファイルを選択してください！')
+tkinter.messagebox.showinfo(name, 'Select the source video.')
 file = tkinter.filedialog.askopenfilename(filetypes=fTyp, initialdir=iDir)
 root, ext = os.path.splitext(file)
 print(ext)
@@ -64,5 +65,4 @@ if ext == ".mp4":
     else:
         print("COMPRESSED")
 else:
-    print("not mp4")
-    tkinter.messagebox.showinfo('name', 'Only vid file')
+    tkinter.messagebox.showinfo('name', 'Only supports mp4 format.')
