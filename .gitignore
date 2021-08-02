@@ -2,3 +2,5 @@
 /.idea
 /gui.py
 /test.mp4
+/Release
+/__pycache__
