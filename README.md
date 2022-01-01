@@ -11,6 +11,10 @@ It skips the installation of the Python package and is easy to run.
 
  When the process is finished, output.mp4 will be output. If it is working properly, the size should be less than 8MB.
  
+## Build
+It can be built for Windows with PyInstaller.<br>
+`pyinstaller "main.py" --add-data "./ffmpeg.exe;." --onefile --noconsole`<br>
+ --noconsole option may cause problems. Please remove it if you get an error.
 ## ToDo📝
 - Create a decent GUI and support drag-and-drop.<br>
   It seems that I need to learn Threading to develop GUI. That's a lot of work.
