@@ -1,13 +1,9 @@
-# import modules
 import math
 import os
 import re
 import subprocess
-# import sys
 import tkinter.filedialog
 import tkinter.messagebox
-# import codecs
-
 
 # reset
 def tempremove():
@@ -16,23 +12,23 @@ def tempremove():
 
 
 # For PyInstaller
-def subprocess_args(include_stdout=True):
-    if hasattr(subprocess, 'STARTUPINFO'):
-        si = subprocess.STARTUPINFO()
-        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        env = os.environ
-    else:
-        si = None
-        env = None
-    if include_stdout:
-        ret = {'stdout': subprocess.PIPE}
-    else:
-        ret = {}
-    ret.update({'stdin': subprocess.PIPE,
-                'stderr': subprocess.PIPE,
-                'startupinfo': si,
-                'env': env})
-    return ret
+# def subprocess_args(include_stdout=True):
+#    if hasattr(subprocess, 'STARTUPINFO'):
+#        si = subprocess.STARTUPINFO()
+#        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+#        env = os.environ
+#    else:
+#        si = None
+#        env = None
+#    if include_stdout:
+#        ret = {'stdout': subprocess.PIPE}
+#    else:
+#        ret = {}
+#    ret.update({'stdin': subprocess.PIPE,
+#                'stderr': subprocess.PIPE,
+#                'startupinfo': si,
+#                'env': env})
+#    return ret
 
 
 # if sys.stdout.encoding != 'UTF-8':
@@ -64,8 +60,9 @@ while suc == 0:
         fTyp = [("", "*")]
         iDir = os.path.abspath(os.path.dirname(__file__))
         sel = tkinter.messagebox.askyesno(name,
-                                          'Use NVENC codec?\nIf you have an NVIDIA graphics board, you can expect '
+                                          'Use NVENC or AMF codec?\nIf you have a graphics board, you can expect '
                                           'higher speed.')
+        #TODO: add h264_amf codec
         if sel:
             codec = 'h264_nvenc'
             prefix = 'cq'
