@@ -1,6 +1,8 @@
+import sys
 from tkinter import *
 from tkinter.font import Font
 from tkinter import messagebox
+
 tkinter_gui = Tk()
 select_codec = IntVar(value=3)
 
@@ -33,7 +35,13 @@ def start_gui():
     button1 = Button(text=u'OK', font=button_font, width=8, command=test)
     button1.place(x=440, y=140)
     # start_tkinter
-    tkinter_gui.mainloop()
 
+
+print("start")
 
 start_gui()
+print("mainloop")
+tkinter_gui.mainloop()
+
+print("end")
+sys.exit()

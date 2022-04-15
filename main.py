@@ -1,9 +1,16 @@
 import math
 import os
+import sys
 import re
 import subprocess
 import tkinter.filedialog
 import tkinter.messagebox
+from tkinter.font import Font
+from tkinter import *
+
+tkinter_gui = Tk()
+select_codec = IntVar(value=2)
+
 
 # reset
 def tempremove():
@@ -12,23 +19,23 @@ def tempremove():
 
 
 # For PyInstaller
-# def subprocess_args(include_stdout=True):
-#    if hasattr(subprocess, 'STARTUPINFO'):
-#        si = subprocess.STARTUPINFO()
-#        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-#        env = os.environ
-#    else:
-#        si = None
-#        env = None
-#    if include_stdout:
-#        ret = {'stdout': subprocess.PIPE}
-#    else:
-#        ret = {}
-#    ret.update({'stdin': subprocess.PIPE,
-#                'stderr': subprocess.PIPE,
-#                'startupinfo': si,
-#                'env': env})
-#    return ret
+def subprocess_args(include_stdout=True):
+    if hasattr(subprocess, 'STARTUPINFO'):
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        env = os.environ
+    else:
+        si = None
+        env = None
+    if include_stdout:
+        ret = {'stdout': subprocess.PIPE}
+    else:
+        ret = {}
+    ret.update({'stdin': subprocess.PIPE,
+                'stderr': subprocess.PIPE,
+                'startupinfo': si,
+                'env': env})
+    return ret
 
 
 # if sys.stdout.encoding != 'UTF-8':
@@ -51,29 +58,77 @@ suc = 0
 cycle = 4
 retry = 0
 
+
 # tkinter
+
+
+def start_gui():
+    # head_tkinter
+    tkinter_gui.title(u"Prefab")
+    tkinter_gui.geometry("600x200")
+    tkinter_gui.protocol('WM_DELETE_WINDOW', quit)
+    fontname = "Lucida Grande"
+    setup_font = Font(family=fontname, size=18)
+    button_font = Font(family=fontname, size=16)
+    # design_tkinter
+    exp1 = Label(text=u"[Setup]\nSelect the availability and type of graphics board.", font=setup_font)
+    exp1.pack()
+    rdo1 = Radiobutton(value=0, text='Nvidia(NVENC_H264)', variable=select_codec)
+    rdo1.place(x=70, y=80)
+    rdo2 = Radiobutton(value=1, text='AMD(AMF_H264)', variable=select_codec)
+    rdo2.place(x=70, y=110)
+    rdo3 = Radiobutton(value=2, text='CPU(h264)   [Recommended]', variable=select_codec)
+    rdo3.place(x=70, y=140)
+    button1 = Button(text=u'OK', font=button_font, width=8, command=selected)
+    button1.place(x=440, y=140)
+    # start_tkinter
+
+
+def gui_end():
+    tkinter_gui.quit()
+    tkinter_gui.destroy()
+
+
+def selected():
+    if select_codec.get() == 3:
+        tkinter.messagebox.showerror("Error", "Please select one.")
+        print("Error")
+    else:
+        gui_end()
+        print("final select")
+        print(select_codec.get())
+
+
+
 while suc == 0:
     if retry == 0:
+        start_gui()
+        tkinter_gui.mainloop()
+        sel = select_codec.get()
         name = '8mb-compressor'
         root = tkinter.Tk()
         root.withdraw()
         fTyp = [("", "*")]
         iDir = os.path.abspath(os.path.dirname(__file__))
-        sel = tkinter.messagebox.askyesno(name,
-                                          'Use NVENC or AMF codec?\nIf you have a graphics board, you can expect '
-                                          'higher speed.')
-        #TODO: add h264_amf codec
-        if sel:
+        if sel == 0:
             codec = 'h264_nvenc'
             prefix = 'cq'
             quality = 20
             nvenc = "-b:v 0"
+
+        elif sel == 1:
+            codec = 'h264_amf'
+            prefix = 'crf'
+            quality = 20
+            nvenc = ""
+
         else:
             codec = 'h264'
             prefix = 'crf'
             quality = 18
             nvenc = ""
         tkinter.messagebox.showinfo(name, 'Select the source video.')
+        print(codec)
 
     file = tkinter.filedialog.askopenfilename(filetypes=fTyp, initialdir=iDir, title='Select the source video.')
     rawfile = file
@@ -112,8 +167,9 @@ while suc == 0:
                 print("Drop fps")
                 proc = subprocess.run(command, **subprocess_args(True), text=True)
                 print(proc.stderr)
-                file = "temp.mp4"
-                filesize = math.ceil(os.path.getsize('temp.mp4') / 1000000)
+                os.rename("temp.mp4", "output.mp4")
+                file = "output.mp4"
+                filesize = math.ceil(os.path.getsize('output.mp4') / 1000000)
                 print(filesize)
                 if filesize >= 100:
                     quality = 50
