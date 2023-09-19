@@ -17,7 +17,6 @@ def tempremove():
     if os.path.exists('temp.mp4'):
         os.remove('temp.mp4')
 
-
 # For PyInstaller
 def subprocess_args(include_stdout=True):
     if hasattr(subprocess, 'STARTUPINFO'):
@@ -37,16 +36,41 @@ def subprocess_args(include_stdout=True):
                 'env': env})
     return ret
 
-
-# if sys.stdout.encoding != 'UTF-8':
-#     sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-# if sys.stderr.encoding != 'UTF-8':
-#     sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
-
+    
 # Path
 maindir = os.path.dirname(os.path.realpath(__file__))
-ffpath = maindir + '\\ffmpeg.exe'
-print(ffpath)
+
+
+def GetSystemEnv():
+
+    path_env  = os.environ['PATH']
+    path_list = path_env.split(os.pathsep)
+    return path_list
+
+
+def ffmpeg_env():
+    path_list = GetSystemEnv()
+    # print(path_list)
+    ffpath = maindir + '\\ffmpeg.exe'
+    # print(ffpath)
+    wanted = "ffmpeg.exe"
+    for path in path_list:
+        if os.path.exists(os.path.join(path, wanted)):
+            ffpath = os.path.join(path, wanted)
+            break
+    
+    if os.path.isfile(ffpath):
+        print("ffmpeg is ready!")
+        print(ffpath)
+        return ffpath
+    else:
+        print("[Error] FFmpeg is not found.",file=sys.stderr)
+        exit()
+
+
+
+
+
 ls_file_name = os.listdir()
 print(ls_file_name)
 if os.path.exists('output.mp4'):
@@ -136,7 +160,7 @@ while suc == 0:
     print(ext)
 
     if ext == ".mp4":
-
+        ffpath = ffmpeg_env()
         # TODO: tkinter gui
         # GET Frame rate
         filesize = math.ceil(os.path.getsize(file) / 1000000)
@@ -177,6 +201,7 @@ while suc == 0:
                     quality = 30
             if filesize >= 250 and fpswitch == 0:
                 quality = 35
+                
             while filesize > 8:
 
                 command = f'"{ffpath}" -y -i "{file}" -vcodec {codec} {nvenc} -{prefix} "{quality}" "output.mp4"'
