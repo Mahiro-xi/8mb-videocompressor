@@ -8,16 +8,58 @@ import tkinter.messagebox
 from tkinter.font import Font
 from tkinter import *
 
-tkinter_gui = Tk()
-select_codec = IntVar(value=2)
+
+class VideoCompressorGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title(u"Prefab")
+        self.root.geometry("600x200")
+        self.select_codec = IntVar(value=0)
+        self.ffpath = self.get_ffmpeg_path()
+        self.setup_gui()
+
+    def setup_gui(self):
+        fontname = "Lucida Grande"
+        setup_font = Font(family=fontname, size=18)
+        button_font = Font(family=fontname, size=16)
+
+        exp1 = Label(text=u"[Setup]\nSelect the availability and type of graphics board.", font=setup_font)
+        exp1.pack()
+
+        Radiobutton(value=0, text='Nvidia(NVENC_H264)', variable=self.select_codec).place(x=70, y=80)
+        Radiobutton(value=1, text='AMD(AMF_H264)', variable=self.select_codec).place(x=70, y=110)
+        Radiobutton(value=2, text='CPU(h264)   [Recommended]', variable=self.select_codec).place(x=70, y=140)
+
+        Button(text=u'OK', font=button_font, width=8, command=self.selected).place(x=440, y=140)
+
+    def selected(self):
+        if self.select_codec.get() not in [0, 1, 2]:
+            tkinter.messagebox.showerror("Error", "Please select one.")
+        else:
+            self.root.quit()
+            self.root.destroy()
+
+    def get_ffmpeg_path(self):
+        maindir = os.path.dirname(os.path.realpath(__file__))
+        ffpath = os.path.join(maindir, 'ffmpeg.exe')
+        path_list = os.environ['PATH'].split(os.pathsep)
+
+        for path in path_list:
+            if os.path.exists(os.path.join(path, 'ffmpeg.exe')):
+                ffpath = os.path.join(path, 'ffmpeg.exe')
+                break
+
+        if os.path.isfile(ffpath):
+            print("ffmpeg is ready!")
+            return ffpath
+        else:
+            print("[Error] FFmpeg is not found.", file=sys.stderr)
+            exit()
+
+    def run(self):
+        self.root.mainloop()
 
 
-# reset
-def tempremove():
-    if os.path.exists('temp.mp4'):
-        os.remove('temp.mp4')
-
-# For PyInstaller
 def subprocess_args(include_stdout=True):
     if hasattr(subprocess, 'STARTUPINFO'):
         si = subprocess.STARTUPINFO()
@@ -26,222 +68,108 @@ def subprocess_args(include_stdout=True):
     else:
         si = None
         env = None
+
+    ret = {'stdin': subprocess.PIPE, 'stderr': subprocess.PIPE, 'startupinfo': si, 'env': env}
     if include_stdout:
-        ret = {'stdout': subprocess.PIPE}
-    else:
-        ret = {}
-    ret.update({'stdin': subprocess.PIPE,
-                'stderr': subprocess.PIPE,
-                'startupinfo': si,
-                'env': env})
+        ret['stdout'] = subprocess.PIPE
     return ret
 
-    
-# Path
-maindir = os.path.dirname(os.path.realpath(__file__))
+
+def get_video_info(file, ffpath):
+    command = f'"{ffpath}" -y -i "{file}"'
+    try:
+        rawinfo = subprocess.run(command, **subprocess_args(True), text=True)
+        rawinfo.check_returncode()
+        return rawinfo.stderr
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to get video info: {e}")
+        return None
 
 
-def GetSystemEnv():
-
-    path_env  = os.environ['PATH']
-    path_list = path_env.split(os.pathsep)
-    return path_list
-
-
-def ffmpeg_env():
-    path_list = GetSystemEnv()
-    # print(path_list)
-    ffpath = maindir + '\\ffmpeg.exe'
-    # print(ffpath)
-    wanted = "ffmpeg.exe"
-    for path in path_list:
-        if os.path.exists(os.path.join(path, wanted)):
-            ffpath = os.path.join(path, wanted)
-            break
-    
-    if os.path.isfile(ffpath):
-        print("ffmpeg is ready!")
-        print(ffpath)
-        return ffpath
-    else:
-        print("[Error] FFmpeg is not found.",file=sys.stderr)
-        exit()
+def parse_fps(info):
+    countmp = info.find('fps')
+    fps_string = info[countmp - 6:countmp]
+    return float(re.sub(r"\D", "", fps_string)) if 's' in fps_string else float(fps_string)
 
 
+def compress_video(input_file, output_file, codec, quality, nvenc, prefix, ffpath, max_size_mb=8):
+    while True:
+        command = f'"{ffpath}" -y -i "{input_file}" -vcodec {codec} {nvenc} -{prefix} "{quality}" "{output_file}"'
+        try:
+            proc = subprocess.run(command, **subprocess_args(True))
+            proc.check_returncode()
+
+            if os.path.exists(output_file):
+                filesize = math.ceil(os.path.getsize(output_file) / 1000000)
+                if filesize <= max_size_mb:
+                    return True
+                quality += 1
+            else:
+                print("FFMPEG ERROR: output file not found.")
+                tkinter.messagebox.showwarning("Compression Failed", f'{output_file} was not found.')
+                return False
+        except subprocess.CalledProcessError as e:
+            print(f"FFMPEG execution failed: {e}")
+            tkinter.messagebox.showwarning("Compression Failed", "FFMPEG execution failed.")
+            return False
 
 
+def main():
+    # Initialize GUI
+    root = Tk()
+    gui = VideoCompressorGUI(root)
+    gui.run()
 
-ls_file_name = os.listdir()
-print(ls_file_name)
-if os.path.exists('output.mp4'):
-    os.remove('output.mp4')
+    # Get user selections
+    codec_map = {0: 'h264_nvenc', 1: 'h264_amf', 2: 'h264'}
+    prefix_map = {0: 'cq', 1: 'crf', 2: 'crf'}
+    quality_map = {0: 20, 1: 20, 2: 18}
+    nvenc_map = {0: "-b:v 0", 1: "", 2: ""}
+    codec = codec_map[gui.select_codec.get()]
+    prefix = prefix_map[gui.select_codec.get()]
+    quality = quality_map[gui.select_codec.get()]
+    nvenc = nvenc_map[gui.select_codec.get()]
 
-tempremove()
-filesize = 0
-suc = 0
-cycle = 4
-retry = 0
+    # Select video file
+    tkinter.messagebox.showinfo("8mb-compressor", 'Select the source video.')
+    file = tkinter.filedialog.askopenfilename(filetypes=[("", "*")],
+                                              initialdir=os.path.abspath(os.path.dirname(__file__)),
+                                              title='Select the source video.')
+    if not file:
+        print("No file selected. Exiting.")
+        return
 
-
-# tkinter
-
-
-def start_gui():
-    # head_tkinter
-    tkinter_gui.title(u"Prefab")
-    tkinter_gui.geometry("600x200")
-    tkinter_gui.protocol('WM_DELETE_WINDOW', quit)
-    fontname = "Lucida Grande"
-    setup_font = Font(family=fontname, size=18)
-    button_font = Font(family=fontname, size=16)
-    # design_tkinter
-    exp1 = Label(text=u"[Setup]\nSelect the availability and type of graphics board.", font=setup_font)
-    exp1.pack()
-    rdo1 = Radiobutton(value=0, text='Nvidia(NVENC_H264)', variable=select_codec)
-    rdo1.place(x=70, y=80)
-    rdo2 = Radiobutton(value=1, text='AMD(AMF_H264)', variable=select_codec)
-    rdo2.place(x=70, y=110)
-    rdo3 = Radiobutton(value=2, text='CPU(h264)   [Recommended]', variable=select_codec)
-    rdo3.place(x=70, y=140)
-    button1 = Button(text=u'OK', font=button_font, width=8, command=selected)
-    button1.place(x=440, y=140)
-    # start_tkinter
-
-
-def gui_end():
-    tkinter_gui.quit()
-    tkinter_gui.destroy()
-
-
-def selected():
-    if select_codec.get() == 3:
-        tkinter.messagebox.showerror("Error", "Please select one.")
-        print("Error")
-    else:
-        gui_end()
-        print("final select")
-        print(select_codec.get())
-
-
-
-while suc == 0:
-    if retry == 0:
-        start_gui()
-        tkinter_gui.mainloop()
-        sel = select_codec.get()
-        name = '8mb-compressor'
-        root = tkinter.Tk()
-        root.withdraw()
-        fTyp = [("", "*")]
-        iDir = os.path.abspath(os.path.dirname(__file__))
-        if sel == 0:
-            codec = 'h264_nvenc'
-            prefix = 'cq'
-            quality = 20
-            nvenc = "-b:v 0"
-
-        elif sel == 1:
-            codec = 'h264_amf'
-            prefix = 'crf'
-            quality = 20
-            nvenc = ""
-
-        else:
-            codec = 'h264'
-            prefix = 'crf'
-            quality = 18
-            nvenc = ""
-        tkinter.messagebox.showinfo(name, 'Select the source video.')
-        print(codec)
-
-    file = tkinter.filedialog.askopenfilename(filetypes=fTyp, initialdir=iDir, title='Select the source video.')
-    rawfile = file
     root, ext = os.path.splitext(file)
-    print(ext)
+    if ext != ".mp4":
+        tkinter.messagebox.showinfo("8mb-compressor", 'Only supports mp4 format.')
+        return
 
-    if ext == ".mp4":
-        ffpath = ffmpeg_env()
-        # TODO: tkinter gui
-        # GET Frame rate
-        filesize = math.ceil(os.path.getsize(file) / 1000000)
-        print(filesize, "MB")
-        incommand = f'"{ffpath}" -y -i "{file}'
-        rawinfo = subprocess.run(incommand, **subprocess_args(True), text=True)
-        info = rawinfo.stderr
-        print(info)
-        countmp = info.find('fps')
-        temps = (info[countmp - 6:countmp])
-        if 's' in temps:
-            tempfps = re.sub(r"\D", "", temps)
-        else:
-            tempfps = temps
-        print(tempfps)
-        resultfps = float(tempfps)
+    # Get video info and determine FPS
+    info = get_video_info(file, gui.ffpath)
+    if not info:
+        return
 
-        while suc == 0:
-            tempremove()
-            if 55 > resultfps:
-                fpswitch = 0
-            else:
-                # Drop fps
-                fpswitch = 1
-                cycle_str = cycle.__str__()
-                command = f'"{ffpath}" -y -i "{rawfile}" -vcodec {codec} {nvenc} -vf decimate=cycle=2 temp.mp4'
-                print(command)
-                print("Drop fps")
-                proc = subprocess.run(command, **subprocess_args(True), text=True)
-                print(proc.stderr)
-                os.rename("temp.mp4", "output.mp4")
-                file = "output.mp4"
-                filesize = math.ceil(os.path.getsize('output.mp4') / 1000000)
-                print(filesize)
-                if filesize >= 100:
-                    quality = 50
-                else:
-                    quality = 30
-            if filesize >= 250 and fpswitch == 0:
-                quality = 35
-                
-            while filesize > 8:
+    resultfps = parse_fps(info)
+    output_file = "output.mp4"
 
-                command = f'"{ffpath}" -y -i "{file}" -vcodec {codec} {nvenc} -{prefix} "{quality}" "output.mp4"'
-                print(command)
-                proc = subprocess.run(command, **subprocess_args(True))
-                print(proc.stderr)
+    # Adjust FPS if necessary
+    if resultfps > 55:
+        command = f'"{gui.ffpath}" -y -i "{file}" -vcodec {codec} {nvenc} -vf decimate=cycle=2 temp.mp4'
+        subprocess.run(command, **subprocess_args(True))
+        os.rename("temp.mp4", output_file)
+        file = output_file
 
-                if os.path.exists('output.mp4'):
-                    filesize = math.ceil(os.path.getsize('output.mp4') / 1000000)
-                    raw = os.path.getsize('output.mp4')
-                    print(filesize, "MB", raw)
-                    if codec == "h264_nvenc":
-                        if raw <= 9000000 and quality < 51 or quality == 50:
-                            quality = quality + 1
-                        else:
-                            quality = quality + 10
-                            if quality > 51 and filesize > 8:
-                                print("last phase failed.")
-                                tkinter.messagebox.showwarning(name, 'Compression failed.')
-                                suc = 1
-                                break
-                    else:
-                        quality = quality + 1
-
-                else:
-                    print("FFMPEG ERROR")
-                    tkinter.messagebox.showwarning(name, 'output.mp4 was not found.')
-                    break
-
-            else:
-                print("COMPRESSED")
-                tkinter.messagebox.showinfo(name, 'Compression successful.')
-                suc = 1
-                tempremove()
-
-    elif ext == "":
-        print("Cancelled")
-        break
-
+    # Compress video
+    if compress_video(file, output_file, codec, quality, nvenc, prefix, gui.ffpath):
+        tkinter.messagebox.showinfo("8mb-compressor", 'Compression successful.')
+        print("Compression successful.")
     else:
-        tkinter.messagebox.showinfo(name, 'Only supports mp4 format.')
-        retry = 1
-        continue
+        print("Compression failed.")
+
+    # Clean up temporary files
+    if os.path.exists('temp.mp4'):
+        os.remove('temp.mp4')
+
+
+if __name__ == "__main__":
+    main()
